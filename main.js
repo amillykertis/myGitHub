@@ -1,123 +1,173 @@
-const score = document.querySelector('.score'),
-	start = document.querySelector('.start'),
-	gameArea = document.querySelector('.gameArea'),
-	car = document.createElement('div'),
-	music = document.createElement('audio');
+document.addEventListener('DOMContentLoaded', () => {
+	'use strict';
 
-car.classList.add('car');
+	const customer = document.getElementById('customer');
+	const freelancer = document.getElementById('freelancer');
+	const blockCustomer = document.getElementById('block-customer');
+	const blockFreelancer = document.getElementById('block-freelancer');
+	const blockChoice = document.getElementById('block-choice');
+	const btnExit = document.getElementById('btn-exit');
+	const formCustomer = document.getElementById('form-customer');
+	const ordersTable = document.getElementById('orders');
+	const modalOrder = document.getElementById('order_read');
+	const modalOrderActive = document.getElementById('order_active');
 
-start.addEventListener('click', startGame);
-document.addEventListener('keydown', startRun);
-document.addEventListener('keyup', stopRun);
+	const orders = JSON.parse(localStorage.getItem('freeOrders')) || [];
 
-const keys = {
-	ArrowUp: false,
-	ArrowDown: false,
-	ArrowRight: false,
-	ArrowLeft: false
-};
+	const toStorage = () => {
+		localStorage.setItem('freeOrders', JSON.stringify(orders));
+	};
 
-const setting = {
-	start: false,
-	score: 0,
-	speed: 3,
-	traffic: 3
-};
 
-function getQuantityElements(heightElement) {
-	return document.documentElement.clientHeight / heightElement + 1;
-}
+	const declOfNum = (number, titles) => number + ' ' + titles[(number % 100 > 4 && number % 100 < 20) ?
+	 2 : [2, 0, 1, 1, 1, 2][(number % 10 < 5) ? number % 10 : 5]];
 
-function startGame(){
-	start.classList.add('hide');
+	const calcDeadline = (deadline) => {
+		const deadline = new Date(date);
+		const toDay = Date.now();
+		const remaining = (deadline - toDay) / 1000 / 60 / 60 / 24;
+		return Math.floor(remaining);
 
-	for (let i = 0; i < getQuantityElements(100); i++) {
-		const line = document.createElement('div');
-		line.classList.add('line');
-		line.style.top = (i * 100) + 'px';
-		line.y = i * 100;
-		gameArea.appendChild(line);
 	}
 
+	const renderOrders = () => {
 
-	for (let i = 0; i < getQuantityElements(100 * setting.traffic); i++) {
-		const enemy = document.createElement('div');
-		enemy.classList.add('enemy');
-		enemy.y = -100 * setting.traffic * (i + 1);
-		enemy.style.left = Math.floor(Math.random() * (gameArea.offsetWidth - 50)) + 'px';
-		enemy.style.top = enemy.y + 'px';
-		enemy.style.background = 'transparent url(./image/enemy2.png) center / cover no-repeat';
-		gameArea.appendChild(enemy);
-	}
+			ordersTable.textContent = '';
 
-	setting.start = true;
-	gameArea.appendChild(car);
-	music.setAttribute('autoplay', true);
-	music.setAttribute('src', './audio.mp3');
-	setting.x = car.offsetLeft;
-	setting.y = car.offsetTop;
-	requestAnimationFrame(playGame);
-}
+			orders.forEach((order, i) => {
 
-function playGame(){
-	
-	if (setting.start){
-		moveRoad();
-		moveEnemy();
-		if (keys.ArrowLeft && setting.x > 0){
-			setting.x -= setting.speed;
-		}
-		if (keys.ArrowRight && setting.x < (gameArea.offsetWidth - car.offsetWidth)) {
-			setting.x += setting.speed;
-		}
-		if (keys.ArrowUp && setting.y > 0){
-			setting.y -= setting.speed;
-		}
-		if (keys.ArrowDown && setting.y < (gameArea.offsetHeight - car.offsetHeight)) {
-			setting.y += setting.speed;
-		}
+				ordersTable.innerHTML += ` 
+					<tr class="order ${order.active ? 'taken' : ''}"
+						data-number-order="${i}">
+						<td>${i+1}</td>
+						<td>${order.title}</td>
+						<td class="${order.currency}"></td>
+						<td>${calcDeadline(order.deadline)}</td>
+					</tr>`;
+			});
+		};
+
+		const handLerModal = (event) => {
+			const target = event.target;
+			const modal = target.closest('.order-modal');
+			const order = orders[modal.id];
+			const baseAction = () => {
+				modal.style.display = 'none';
+				toStorage();
+				renderOrders();
+			}
+
+			if (target.closest('.close') || target === modal) {
+				modal.style.display = 'none';
+			}
+
+			if (target.classList.contains('get-order')) {
+				order.active = true;
+				baseAction();
+			}
+			if (target.id === 'capitulation') {
+				order.active = false;
+				baseAction();
+			}
+			if (target.id === 'ready') {
+				orders.splice(orders.indexOf(order), 1);
+				baseAction();
+			}
+		};
+
+		const openModal = (numberOrder) => {
+			const order = orders[numberOrder];
+
+			const { title, firstName, email, phone, description, amount, 
+				currency, deadline, active = false } = order;
+
+			const modal = active ? modalOrderActive : modalOrder;
+
+			
+
+			const firstNameBlock = modal.querySelector('.firstName'),
+				titleBlock = modal.querySelector('.modal-title'),
+				emailBlock = modal.querySelector('.email'),
+				descriptionBlock = modal.querySelector('.description'),
+				deadlineBlock = modal.querySelector('.deadline'),								
+				currencyBlock = modal.querySelector('.currency_img'),
+				countBlock = modal.querySelector('.count'),
+				phoneBlock = modal.querySelector('.phone');
+
+			modal.id = numberOrder;
+			titleBlock.textContent = title;
+			firstNameBlock.textContent = firstName;
+			emailBlock.textContent = email;
+			emailBlock.href = 'mailto:' + email;
+			descriptionBlock.textContent = description;
+			deadlineBlock.textContent = calcDeadline(deadline);
+			currencyBlock.className = 'currency_img';
+			currencyBlock.classList.add(currency);
+			countBlock.textContent = amount;
+			phoneBlock ? phoneBlock.href = 'tel:' + phone : '';
+
+
+		modal.style.display = 'flex';
+
+		modal.addEventListener('click', handLerModal);
+		};
+
+		ordersTable.addEventListener('click', (event) => {
+			const target = event.target;
+
+			const targetOrder = target.closest('.order')
+			if (targetOrder) {
+				openModal(targetOrder.dataset.numberOrder);
+			}
+
+		});
+
+
+
+	customer.addEventListener('click', () => {
+		blockChoice.style.display = 'none';
+		blockCustomer.style.display = 'block';
+		btnExit.style.display = 'block';
+	});
+
+	freelancer.addEventListener('click', () => {
+		blockChoice.style.display = 'none';
+		renderOrders();
+		blockFreelancer.style.display = 'block';
+		btnExit.style.display = 'block';
+	});
+
+	btnExit.addEventListener('click', () => {
+		btnExit.style.display = 'none';
+		blockFreelancer.style.display = 'none';
+		blockCustomer.style.display = 'none';
+		blockChoice.style.display = 'block';
 		
-		car.style.left = setting.x + 'px';
-		car.style.top = setting.y + 'px'; 
-
-		requestAnimationFrame(playGame);
-	}
-	
-}
-
-function startRun(event){
-	event.preventDefault();
-	keys[event.key] = true;
-}
-
-function stopRun(event){
-	event.preventDefault();
-	keys[event.key] = false;
-}	
-
-function moveRoad() {
-	let lines = document.querySelectorAll('.line');
-	lines.forEach(function(line){
-		line.y += setting.speed;
-		line.style.top = line.y + 'px';
-
-		if (line.y > document.documentElement.clientHeight) {
-			line.y = -100;
-		}
-	});
-}
-
-function moveEnemy() {
-	let enemy = document.querySelectorAll('.enemy');
-	enemy.forEach(function(item){
-		item.y += setting.speed / 2;
-		item.style.top = item.y + 'px';
-		if (item.y >= document.documentElement.clientHeight){
-			item.y = -100 * setting.traffic;
-			item.style.left = Math.floor(Math.random() * (gameArea.offsetWidth - 50)) + 'px';
-		}
 	});
 
+	formCustomer.addEventListener('submit', (event) => {
+		event.preventDefault();
 
-	
-}
+
+
+		const obj = {};
+
+		const elements = [...formCustomer.elements]
+		.filter((elem) => (elem.tagName === 'INPUT' && elem.type !== 'radio') || 
+				(elem.type === 'radio' && elem.checked) ||
+				elem.tagName === 'TEXTAREA');
+
+		elements.forEach((elem) => {
+				obj[elem.name] = elem.value;
+
+		});
+
+
+		formCustomer.reset();
+
+		orders.push(obj);
+		toStorage();
+		
+	});
+
+});
